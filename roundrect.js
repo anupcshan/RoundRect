@@ -545,6 +545,13 @@
 		radii: null,
 
 		/**
+		 * Cached values for the linear-gradient value, containing startColor,
+		 * endColor and angle.
+		 * @type {Object.<string, string, number>}
+		 */
+		gradient: null,
+
+		/**
 		 * Cached values for the top, right, bottom, and left border widths.
 		 * @type {Object.<string, *>}
 		 * @private
@@ -889,6 +896,10 @@
 			case 'style.filter':
 				this.vmlOpacity();
 				break;
+			case 'style.linear-gradient':
+				this.gradient = this.calculateGradient();
+				this.vmlGradient();
+				break;
 			case 'style.zIndex':
 				cs.zIndex = es.zIndex;
 				break;
@@ -940,6 +951,7 @@
 				this.dimensions = this.calculateDimensions();
 				this.borderWidths = this.calculateBorderWidths();
 				this.radii = this.calculateRadii();
+				this.gradient = this.calculateGradient();
 				this.applyVML();
 			}
 		},
@@ -1015,6 +1027,29 @@
 				right: parseInt(cs.borderRightWidth, 10) || 0,
 				bottom: parseInt(cs.borderBottomWidth, 10) || 0,
 				left: parseInt(cs.borderLeftWidth, 10) || 0
+			};
+		},
+
+		/**
+		 * Calculates the element's gradient value.
+		 *
+		 * Format of linear-gradient CSS attribute:
+		 *		linear-gradient: <gradient_angle>, <start_color>, <end_color>
+		 *		where <gradient_angle>: radial angle [0-360]
+		 *							  : defaults to 180 => vertical gradient(top to bottom)
+		 * @return {Object.<string, string, number>} Object with
+		 * three keys: startColor, endColor, angle.
+		 * @private
+		 */
+		calculateGradient: function () {
+			var gradientString = this.element.currentStyle['linear-gradient'];
+			if (gradientString == null || gradientString == undefined)
+				return null;
+			var gradient = gradientString.split(',');
+			return {
+				angle: parseInt(gradient[0]) || 180,
+				startColor: gradient[1] || '#000000',
+				endColor: gradient[2] || '#000000'
 			};
 		},
 
@@ -1125,6 +1160,7 @@
 				}));
 				this.dimensions = this.calculateDimensions();
 				this.borderWidths = this.calculateBorderWidths();
+				this.gradient = this.calculateGradient();
 				this.applyVML();
 			}));
 		},
@@ -1155,6 +1191,29 @@
 			this.vmlPath();
 			this.padBorder();
 			this.vmlOpacity();
+			this.vmlGradient();
+		},
+
+		/**
+		 * Updates the gradient of the VML elements that belong to the element.
+		 * @private
+		 */
+		vmlGradient: function () {
+			var e = this.element,
+				gradient = this.gradient,
+				opacity,
+				vml = this.vml;
+
+			if (gradient != null) {
+				for (var i in vml) {
+					if (vml.hasOwnProperty(i)) {
+						vml[i].filler.type = 'gradient';
+						vml[i].filler.color = gradient.startColor;
+						vml[i].filler.color2 = gradient.endColor;
+						vml[i].filler.angle = gradient.angle;
+					}
+				}
+			}
 		},
 
 		/**
